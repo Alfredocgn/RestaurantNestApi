@@ -7,11 +7,13 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { Order } from './entities/order.entity';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Controller('orders')
 export class OrderController {
@@ -23,21 +25,40 @@ export class OrderController {
   }
 
   @Get()
-  async findAll(): Promise<Order[]> {
-    return await this.orderService.findAll();
+  async findAll(@Query() paginationDto: PaginationDto): Promise<Order[]> {
+    return await this.orderService.findAll(paginationDto);
   }
 
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.orderService.findOne(id);
   }
+  @Get('client-history/:id')
+  getOrdersByClientId(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('isActive') isActive?: string,
+  ) {
+    const isActiveBoolean = isActive === 'true';
+    return this.orderService.getOrderByClientId(id, isActiveBoolean);
+  }
 
-  @Patch(':id')
-  update(
+  @Patch('add-request/:id')
+  addRequestToOrder(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateOrderDto: UpdateOrderDto,
   ) {
-    return this.orderService.update(id, updateOrderDto);
+    return this.orderService.addRequestToOrder(id, updateOrderDto.description);
+  }
+  @Patch('update-status/:id')
+  updateOrderStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateOrderDto: UpdateOrderDto,
+  ) {
+    return this.orderService.updateOrderStatus(id, updateOrderDto.status);
+  }
+  @Patch('cancel/:id')
+  cancelOrder(@Param('id', ParseUUIDPipe) id: string) {
+    return this.orderService.cancelOrder(id);
   }
 
   @Delete(':id')

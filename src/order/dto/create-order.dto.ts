@@ -1,9 +1,10 @@
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import { IsArray, IsEnum, IsNotEmpty, IsUUID } from 'class-validator';
+import { OrderStatus } from '../entities/order.entity';
 
 export class CreateOrderDto {
-  @IsString()
+  @IsArray()
   @IsNotEmpty()
-  description: string;
+  description: string[];
 
   @IsNotEmpty()
   @IsUUID()
@@ -12,4 +13,7 @@ export class CreateOrderDto {
   @IsNotEmpty()
   @IsUUID()
   clientId: string;
+
+  @IsEnum(OrderStatus)
+  status: OrderStatus = OrderStatus.PAID;
 }

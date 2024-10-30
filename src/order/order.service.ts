@@ -4,15 +4,20 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  Query,
 } from '@nestjs/common';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
+import { CreateOrderDto } from './dto';
 import { Repository } from 'typeorm';
-import { Order } from './entities/order.entity';
+import { Order, OrderStatus } from './entities/order.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Restaurant } from 'src/restaurant/entities/restaurant.entity';
 import { Client } from 'src/client/entities/client.entity';
+import { PaginationDto } from 'src/common/dto';
 
+interface OrderWhereCondition {
+  client: { id: string };
+  isActive?: boolean;
+}
 @Injectable()
 export class OrderService {
   private readonly logger = new Logger('OrderService');
@@ -42,6 +47,20 @@ export class OrderService {
       if (!restaurant || !client) {
         throw new NotFoundException('Restaurant or client not found');
       }
+
+      const existingClientWithOrder = await this.ordersRepository.findOne({
+        where: {
+          client: { id: clientId },
+          restaurant: { id: restaurantId },
+          isActive: true,
+        },
+      });
+      if (existingClientWithOrder) {
+        throw new BadRequestException(
+          `This client already has an active order in this restaurant`,
+        );
+      }
+
       if (restaurant.currentClients >= restaurant.capacity) {
         throw new BadRequestException('Restaurant at full capacity');
       }
@@ -64,9 +83,23 @@ export class OrderService {
     }
   }
 
-  async findAll(): Promise<Order[]> {
+  async findAll(@Query() paginationDto: PaginationDto): Promise<Order[]> {
+    const { limit, offset } = paginationDto;
     try {
-      const orders = await this.ordersRepository.find();
+      const orders = await this.ordersRepository.find({
+        skip: offset,
+        take: limit,
+        where: { isActive: true },
+        relations: ['restaurant', 'client'],
+        select: {
+          restaurant: {
+            name: true,
+          },
+          client: {
+            name: true,
+          },
+        },
+      });
       return orders;
     } catch (error) {
       this.handleDBExceptions(error);
@@ -79,20 +112,12 @@ export class OrderService {
       relations: ['client', 'restaurant'],
     });
 
-    if (!order) {
-      throw new NotFoundException(`Order with id ${id} not found`);
+    if (!order || !order.isActive) {
+      throw new NotFoundException(
+        `Order with id ${id} not found or not active`,
+      );
     }
 
-    return order;
-  }
-
-  async update(id: string, updateOrderDto: UpdateOrderDto): Promise<Order> {
-    const order = await this.ordersRepository.preload({
-      id,
-      description: updateOrderDto.description,
-    });
-
-    await this.ordersRepository.save(order);
     return order;
   }
 
@@ -103,11 +128,85 @@ export class OrderService {
 
   async cancelOrder(id: string) {
     const order = await this.findOne(id);
-
+    order.isActive = false;
     order.restaurant.currentClients -= 1;
     await this.restaurantRepository.save(order.restaurant);
-    await this.ordersRepository.remove(order);
+    await this.ordersRepository.save(order);
     return order;
+  }
+
+  async addRequestToOrder(
+    orderId: string,
+    description: string[],
+  ): Promise<Order> {
+    const order = await this.findOne(orderId);
+
+    order.description.push(...description);
+    await this.ordersRepository.save(order);
+    return order;
+  }
+
+  async closeOrder(orderId: string): Promise<Order> {
+    const order = await this.findOne(orderId);
+    if (!order.isActive) {
+      throw new BadRequestException(
+        `Order with id ${orderId} is already inactive`,
+      );
+    }
+    order.isActive = false;
+    order.restaurant.currentClients -= 1;
+    await this.restaurantRepository.save(order.restaurant);
+    await this.ordersRepository.save(order);
+    return order;
+  }
+
+  async updateOrderStatus(
+    orderId: string,
+    status: OrderStatus,
+  ): Promise<Order> {
+    const order = await this.ordersRepository.preload({
+      id: orderId,
+      status,
+    });
+    if (!order) {
+      throw new NotFoundException(`Order with id $${orderId} not found`);
+    }
+    return order;
+  }
+
+  async getOrderByClientId(clientId: string, isActive?: boolean) {
+    try {
+      const whereCondition: OrderWhereCondition = {
+        client: { id: clientId },
+      };
+      if (isActive === false) {
+        whereCondition.isActive = undefined;
+      } else {
+        whereCondition.isActive = true;
+      }
+
+      const activeOrders = await this.ordersRepository.find({
+        where: whereCondition,
+        relations: ['restaurant', 'client'],
+        select: {
+          id: true,
+          description: true,
+          status: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          restaurant: {
+            name: true,
+          },
+          client: {
+            name: true,
+          },
+        },
+      });
+      return activeOrders;
+    } catch (error) {
+      return this.handleDBExceptions(error);
+    }
   }
 
   private handleDBExceptions(error: any) {

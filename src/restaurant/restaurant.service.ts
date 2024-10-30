@@ -1,14 +1,15 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateRestaurantDto } from './dto/create-restaurant.dto';
-import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
+import { UpdateRestaurantDto, CreateRestaurantDto } from './dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Restaurant } from './entities/restaurant.entity';
 import { Repository } from 'typeorm';
+import { PaginationDto } from 'src/common/dto';
 
 @Injectable()
 export class RestaurantService {
@@ -28,9 +29,13 @@ export class RestaurantService {
     }
   }
 
-  async findAll(): Promise<Restaurant[]> {
+  async findAll(paginationDto: PaginationDto): Promise<Restaurant[]> {
+    const { limit, offset } = paginationDto;
     try {
-      const restaurants = await this.restaurantRepository.find();
+      const restaurants = await this.restaurantRepository.find({
+        take: limit,
+        skip: offset,
+      });
       return restaurants;
     } catch (error) {
       this.handleDBExceptions(error);
@@ -38,7 +43,7 @@ export class RestaurantService {
   }
 
   async findOne(id: string): Promise<Restaurant> {
-    const restaurant = this.restaurantRepository.findOneBy({ id });
+    const restaurant = await this.restaurantRepository.findOneBy({ id });
 
     if (!restaurant) {
       throw new NotFoundException(`Restaurant with id ${id} not found`);
@@ -56,8 +61,19 @@ export class RestaurantService {
       ...updateRestaurantDto,
     });
 
-    this.restaurantRepository.save(restaurant);
-    return restaurant;
+    if (!restaurant) {
+      throw new NotFoundException(`Restaurant with id ${id} not found`);
+    }
+
+    if (restaurant.currentClients > restaurant.capacity) {
+      throw new BadRequestException('Cannot exceed restaurant capacity');
+    }
+    try {
+      this.restaurantRepository.save(restaurant);
+      return restaurant;
+    } catch (error) {
+      throw new Error(error);
+    }
   }
 
   async remove(id: string) {

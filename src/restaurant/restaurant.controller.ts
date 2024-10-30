@@ -7,11 +7,13 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import { RestaurantService } from './restaurant.service';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { Restaurant } from './entities/restaurant.entity';
+import { PaginationDto } from 'src/common/dto';
 
 @Controller('restaurants')
 export class RestaurantController {
@@ -25,8 +27,8 @@ export class RestaurantController {
   }
 
   @Get()
-  findAll() {
-    return this.restaurantService.findAll();
+  findAll(@Query() paginationDto: PaginationDto) {
+    return this.restaurantService.findAll(paginationDto);
   }
 
   @Get(':id')
@@ -47,7 +49,7 @@ export class RestaurantController {
     return this.restaurantService.remove(id);
   }
 
-  @Patch('id/reset-clients')
+  @Patch('reset-clients/:id')
   async resetClients(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<Restaurant> {

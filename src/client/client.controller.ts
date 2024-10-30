@@ -7,11 +7,13 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import { ClientService } from './client.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { Client } from './entities/client.entity';
+import { PaginationDto } from 'src/common/dto';
 
 @Controller('clients')
 export class ClientController {
@@ -23,8 +25,11 @@ export class ClientController {
   }
 
   @Get()
-  async findAll(): Promise<Client[]> {
-    return await this.clientService.findAll();
+  async findAll(
+    @Query()
+    paginationDto: PaginationDto,
+  ): Promise<Client[]> {
+    return await this.clientService.findAll(paginationDto);
   }
 
   @Get(':id')

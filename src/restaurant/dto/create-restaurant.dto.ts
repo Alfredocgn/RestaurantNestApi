@@ -1,4 +1,4 @@
-import { IsNumber, IsString } from 'class-validator';
+import { IsInt, IsNumber, IsString, Min } from 'class-validator';
 
 export class CreateRestaurantDto {
   @IsString()
@@ -9,4 +9,8 @@ export class CreateRestaurantDto {
 
   @IsNumber()
   capacity: number;
+
+  @IsInt()
+  @Min(0)
+  currentClients: number;
 }

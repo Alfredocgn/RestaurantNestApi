@@ -4,11 +4,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateClientDto } from './dto/create-client.dto';
-import { UpdateClientDto } from './dto/update-client.dto';
+import { UpdateClientDto, CreateClientDto } from './dto';
 import { Client } from './entities/client.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { PaginationDto } from 'src/common/dto';
 
 @Injectable()
 export class ClientService {
@@ -27,9 +27,13 @@ export class ClientService {
     }
   }
 
-  async findAll(): Promise<Client[]> {
+  async findAll(paginationDto: PaginationDto): Promise<Client[]> {
+    const { limit = 10, offset = 0 } = paginationDto;
     try {
-      const clients = this.clientsRepository.find();
+      const clients = this.clientsRepository.find({
+        take: limit,
+        skip: offset,
+      });
       return clients;
     } catch (error) {
       this.handleDBExceptions(error);
