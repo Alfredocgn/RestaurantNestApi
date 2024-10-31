@@ -18,6 +18,7 @@ interface OrderWhereCondition {
   client: { id: string };
   isActive?: boolean;
 }
+
 @Injectable()
 export class OrderService {
   private readonly logger = new Logger('OrderService');
@@ -130,9 +131,10 @@ export class OrderService {
     const order = await this.findOne(id);
     order.isActive = false;
     order.restaurant.currentClients -= 1;
+    order.status = OrderStatus.CANCELLED;
     await this.restaurantRepository.save(order.restaurant);
     await this.ordersRepository.save(order);
-    return order;
+    return { order, message: 'Order cancelled succesfully' };
   }
 
   async addRequestToOrder(
@@ -171,6 +173,7 @@ export class OrderService {
     if (!order) {
       throw new NotFoundException(`Order with id $${orderId} not found`);
     }
+    await this.ordersRepository.save(order);
     return order;
   }
 

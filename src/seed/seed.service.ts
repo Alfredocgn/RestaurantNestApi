@@ -52,6 +52,8 @@ export class SeedService {
     const orders = initialData.orders.map((order, index) => {
       const randomClient = clients[index % clients.length];
       const randomRestaurant = restaurants[index % restaurants.length];
+      randomRestaurant.currentClients += 1;
+      this.restaurantRepository.save(randomRestaurant);
 
       return this.orderRepository.create({
         ...order,

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNumber, IsString, Min } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateRestaurantDto {
   @ApiProperty({
@@ -31,5 +31,6 @@ export class CreateRestaurantDto {
   })
   @IsInt()
   @Min(0)
+  @IsOptional()
   currentClients: number;
 }
