@@ -1,4 +1,8 @@
 import { Module } from '@nestjs/common';
+import { TransformInterceptor } from './transform.interceptor';
 
-@Module({})
+@Module({
+  providers: [TransformInterceptor],
+  exports: [TransformInterceptor],
+})
 export class CommonModule {}
